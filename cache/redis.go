@@ -17,12 +17,19 @@ func init() {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
-
+	resp := client.Ping()
+	if resp.Err() != nil {
+		client = redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "", // no password set
+			DB:       0,  // use default DB
+		})
+	}
 }
 
 func GetCabRidesForMedallions(medallions []string) ([]*db.CabRide, []string, error) {
 	var cabRides []*db.CabRide
-	var missingMedallions []string
+	missingMedallions := []string{}
 	for _, m := range medallions {
 		var cabRide *db.CabRide
 		val2, err := client.Get(m).Result()

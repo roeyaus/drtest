@@ -1,0 +1,40 @@
+Hey there!
+This is my solution to the DR challenge.
+
+-------------------------------------------------------------------------------------------------------------------------
+
+To run, make sure you have docker-compose installed.
+Then in the repo root run 
+"docker-compose build && docker-compose up -d"
+
+This will bring up all the necessary containers to run the server, and will run the server as well.
+To clean-up: 
+"docker-compose down"
+
+CLI Tool : 
+In the repo root, run "./drtest-cli.sh" and follow the instructions. ** Should have "wget" installed, but if not please install it
+
+example : ./drtest-cli.sh trips --medallions=D7D598CD99978BD012A87A76A7C891B7,5455D5FF2BD94D10B304A15D4B7F2735 --nocache
+or :      ./drtest-cli.sh clearcache
+
+the CLI tool returns 200 + JSON as a response body to the /trips endpoint , which should be easy to parse/understand.
+The /clearcache endpoint just returns 200/ok
+
+--------------------------------------------------------------------------------------------------------------------------
+
+A little about what everything here does : 
+docker-compose spins up three containers : 
+- mysql  - which ingests the .sql file automatically on creation
+- redis
+- our web server
+
+The web server uses Golang Iris web-server package, which in retrospect I probably shouldn't have used since it has licensing issues, but oh well.
+The reset is pretty self explanatory.
+
+TESTING : 
+run : "go test ./..."
+
+The tests are rudimentary due to lack of time , but should reflect knowledge of testing fundamentals
+
+Thanks for your time!
+Roey

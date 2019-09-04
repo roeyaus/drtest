@@ -12,16 +12,20 @@ import (
 var db *sqlx.DB
 
 type CabRide struct {
-	Medallion  string    `db:"medallion"`
-	PickupDate time.Time `db:"pickup_date"`
-	NumTrips   int       `db:"num_trips"`
+	Medallion  string    `db:"medallion" json:"medallion"`
+	PickupDate time.Time `db:"pickup_date" json:"pickup_date"`
+	NumTrips   int       `db:"num_trips" json:"num_trips"`
 }
 
 func init() {
 	var err error
 	db, err = sqlx.Connect("mysql", "root:root@tcp(db:3306)/mydb?parseTime=true")
 	if err != nil {
-		log.Fatalln(err)
+		//maybe we're in test
+		db, err = sqlx.Connect("mysql", "root:root@tcp(localhost:3306)/mydb?parseTime=true")
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
 }
 
