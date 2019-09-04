@@ -3,9 +3,9 @@ package cache
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/go-redis/redis"
-	"github.com/pkg/errors"
 	"github.com/roeyaus/drtest/db"
 )
 
@@ -13,38 +13,51 @@ var client *redis.Client
 
 func init() {
 	client = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     "redis:6379",
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
 
 }
 
-func GetCabRidesForMedallions(medallions []string) (*[]db.CabRide, error) {
-	var cabRides *[]db.CabRide
+func GetCabRidesForMedallions(medallions []string) ([]*db.CabRide, []string, error) {
+	var cabRides []*db.CabRide
+	var missingMedallions []string
 	for _, m := range medallions {
 		var cabRide *db.CabRide
-		val2, err := client.Get(medallion).Result()
+		val2, err := client.Get(m).Result()
 		if err == redis.Nil {
-			fmt.Printf("%v does not exist\n", medallion)
-			return nil, nil
+			fmt.Printf("%v does not exist\n", m)
+			missingMedallions = append(missingMedallions, m)
 		} else if err != nil {
-			return nil, errors.Wrap(err, "GetCabRideForMedallion::Get failed")
+			missingMedallions = append(missingMedallions, m)
 		} else {
 			if err = json.Unmarshal([]byte(val2), &cabRide); err != nil {
-				return nil, errors.Wrap(err, "GetCabRideForMedallion::Unmarshal failed")
+				missingMedallions = append(missingMedallions, m)
 			}
 			cabRides = append(cabRides, cabRide)
 		}
 	}
-	
-	return nil, nil
+
+	return cabRides, missingMedallions, nil
 }
 
-func SetCabRide(cabRide *db.CabRide) error {
-	err := client.Set(cabRide.Medallion, cabRide, 0).Err()
-	if err != nil {
-		return errors.Wrap(err, "SetCabRide::Get failed")
+func SetCabRides(cabRide []*db.CabRide) error {
+	for _, cr := range cabRide {
+		json, err := json.Marshal(cr)
+		if err != nil {
+			fmt.Printf("SetCabRides::Marshal failed %v", err)
+		}
+		err = client.Set(cr.Medallion, json, 30*time.Second).Err()
+		if err != nil {
+			fmt.Printf("SetCabRides::Set failed %v", err)
+		}
 	}
+
 	return nil
+}
+
+func ClearCacheForMedallions(medallions []string) error {
+	res := client.Del(medallions...)
+	return res.Err()
 }

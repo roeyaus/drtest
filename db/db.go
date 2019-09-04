@@ -1,7 +1,6 @@
 package db
 
 import (
-	"fmt"
 	"log"
 	"time"
 
@@ -20,7 +19,7 @@ type CabRide struct {
 
 func init() {
 	var err error
-	db, err = sqlx.Connect("mysql", "root:root@tcp(127.0.0.1:3306)/mydb?parseTime=true")
+	db, err = sqlx.Connect("mysql", "root:root@tcp(db:3306)/mydb?parseTime=true")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -28,14 +27,16 @@ func init() {
 
 func GetCabRidesForMedallions(medallions []string) ([]*CabRide, error) {
 	cabRides := []*CabRide{}
-	fmt.Printf("%+v", medallions)
+	if len(medallions) == 0 {
+		return cabRides, nil
+	}
 	query, args, err := sqlx.In("SELECT medallion, DATE(pickup_datetime) as pickup_date, COUNT(medallion) as num_trips FROM cab_trip_data WHERE medallion IN (?) GROUP BY medallion, DATE(pickup_datetime)", medallions)
 	if err != nil {
-		return nil, errors.Wrap(err, "GetCabRidesForMedallions::In failed")
+		return cabRides, errors.Wrap(err, "GetCabRidesForMedallions::In failed")
 	}
 
 	if err = db.Select(&cabRides, db.Rebind(query), args...); err != nil {
-		return nil, errors.Wrap(err, "GetCabRidesForMedallions::Select failed")
+		return cabRides, errors.Wrap(err, "GetCabRidesForMedallions::Select failed")
 	}
 	return cabRides, nil
 }

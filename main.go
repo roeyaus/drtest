@@ -1,9 +1,12 @@
 package main
 
 import (
+	"io/ioutil"
+	"strings"
+
 	"github.com/kataras/iris"
-	"github.com/roeyaus/drtest/db"
 	"github.com/roeyaus/drtest/cache"
+	"github.com/roeyaus/drtest/db"
 )
 
 type Request struct {
@@ -13,28 +16,71 @@ type Request struct {
 func main() {
 	app := iris.Default()
 	app.Post("/trips", func(ctx iris.Context) {
-		var bodyJSON Request
-		if err := ctx.ReadJSON(&bodyJSON); err != nil {
-			ctx.StatusCode(500)
-			ctx.Writef("error : %v", err)
-			return
-		}
-		if len(bodyJSON.Medallions) == 0 {
-			ctx.StatusCode(401)
-			ctx.Writef("error : no medallions provided")
-			return
-		}
-		ctx.Writef("provided %v medallions", len(bodyJSON.Medallions))
-		//first check cache
-		//cache.GetCabRideForMedallion()
-		cabRides, err := db.GetCabRidesForMedallions(bodyJSON.Medallions)
+		var err error
+		//check clearcache param
+		noCache, _ := ctx.URLParamBool("nocache")
+		rawData, err := ioutil.ReadAll(ctx.Request().Body)
 		if err != nil {
 			ctx.StatusCode(500)
-			ctx.Writef("error : %v", err)
+			ctx.Writef("error : %v\n", err)
 			return
 		}
-		ctx.JSON(cabRides)
+		medallions := strings.Split(string(rawData), ",")
+		if len(medallions) == 0 {
+			ctx.StatusCode(401)
+			ctx.Writef("error : no medallions provided\n")
+			return
+		}
+
+		var cabRides []*db.CabRide
+		var notCached []string
+		//should we clear the cache for these medallions first?
+		if !noCache {
+			//first check cache
+			cabRides, notCached, err = cache.GetCabRidesForMedallions(medallions)
+			if err != nil {
+				ctx.StatusCode(500)
+				ctx.Writef("error : %v\n", err)
+				return
+			}
+		} else {
+			notCached = medallions
+		}
+
+		cabRidesFromDB, err := db.GetCabRidesForMedallions(notCached)
+		if err != nil {
+			ctx.StatusCode(500)
+			ctx.Writef("error : %v\n", err)
+			return
+		}
+		cabRides = append(cabRides, cabRidesFromDB...)
+		_ = cache.SetCabRides(cabRides)
+		rides := map[string]*db.CabRide{}
+		for _, r := range cabRides {
+			rides[r.Medallion] = r
+		}
+		ctx.JSON(rides)
 	})
 
+	app.Post("/clearcache", func(ctx iris.Context) {
+		rawData, err := ioutil.ReadAll(ctx.Request().Body)
+		if err != nil {
+			ctx.StatusCode(500)
+			ctx.Writef("error : %v\n", err)
+			return
+		}
+		medallions := strings.Split(string(rawData), ",")
+		if len(medallions) == 0 {
+			ctx.StatusCode(401)
+			ctx.Writef("error : no medallions provided\n")
+			return
+		}
+		if err := cache.ClearCacheForMedallions(medallions); err != nil {
+			ctx.StatusCode(500)
+			ctx.Writef("error : %v\n", err)
+			return
+		}
+		ctx.Writef("ok")
+	})
 	app.Run(iris.Addr(":8080"))
 }
