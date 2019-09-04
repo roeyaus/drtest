@@ -64,7 +64,7 @@ func SetCabRides(cabRide []*db.CabRide) error {
 	return nil
 }
 
-func ClearCacheForMedallions(medallions []string) error {
-	res := client.Del(medallions...)
+func ClearCacheForMedallions() error {
+	res := client.FlushDB()
 	return res.Err()
 }

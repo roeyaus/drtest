@@ -75,7 +75,7 @@ func main() {
 			ctx.Writef("error : no medallions provided\n")
 			return
 		}
-		if err := cache.ClearCacheForMedallions(medallions); err != nil {
+		if err := cache.ClearCacheForMedallions(); err != nil {
 			ctx.StatusCode(500)
 			ctx.Writef("error : %v\n", err)
 			return
